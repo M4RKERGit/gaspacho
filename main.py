@@ -1,11 +1,14 @@
-import time, subprocess, platform, ctypes
+import time, subprocess, platform, ctypes, datetime
 import json
 import requests
+import math
 
-def getDayTime(t):
-    if t.tm_hour >= 7 and time.localtime().tm_hour <= 12: return 'morning'
-    if t.tm_hour >= 12 and time.localtime().tm_hour <= 20: return 'day'
-    if t.tm_hour >= 20 and time.localtime().tm_hour <= 22: return 'evening'
+def getDayTime(t, response):
+    sunrise = math.ceil(datetime.datetime.fromtimestamp((json.loads(response.text)["sys"]["sunrise"])).hour)
+    sunset = math.ceil(datetime.datetime.fromtimestamp((json.loads(response.text)["sys"]["sunset"])).hour)
+    if t.tm_hour >= sunrise and time.localtime().tm_hour <= sunrise + 6: return 'morning'
+    if t.tm_hour >= sunrise + 6 and time.localtime().tm_hour <= sunrise + 12: return 'day'
+    if t.tm_hour >= sunrise + 12 and time.localtime().tm_hour <= sunset: return 'evening'
     return 'night'
 
 while(True):
@@ -14,13 +17,13 @@ while(True):
         gpsRes = requests.get("https://ipinfo.io/loc")
         lat = gpsRes.text.split(',')[0]
         lon = gpsRes.text.split(',')[1][:-1]
-        response = requests.get(f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid=")
+        response = requests.get(f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid=06d0d10ec4b1f25282e0ea1f8788bcb2")
         weather = json.loads(response.text)["weather"][0]["main"].lower()
     except:
         weather = "clear"
     path = f"/home/opezdal/Pictures/wallpapers/{weather}"
     t = time.localtime()
-    dayTime = getDayTime(t)
+    dayTime = getDayTime(t, response)
     if runningSys == "Linux":
         process = subprocess.Popen(["feh", "--bg-fill", f"{path}/{dayTime}.jpg"])
         process.wait()
