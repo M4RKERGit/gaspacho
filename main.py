@@ -1,4 +1,4 @@
-import time, subprocess, platform, ctypes, datetime
+import time, subprocess, platform, ctypes, datetime, random
 import json
 import requests
 import math
@@ -11,8 +11,42 @@ def getDayTime(t, response):
     if t.tm_hour >= sunrise + 12 and time.localtime().tm_hour <= sunset: return 'evening'
     return 'night'
 
-while(True):
+def parsePic(dayTime, weather):
+    try:
+        request = requests.get(f"https://pixabay.com/api/?key=20129846-7b8836a9a63b2f2b6fa405f5f&q={dayTime}+{weather}&image_type=photo&pretty=true")
+        data = json.loads(request)
+        hit = data["hits"][random.randint(0, len(data["hits"]))]
+        picUrl = hit["largeImageURL"]
+        resource = request.get(picUrl)
+        out = open("~/Pictures/wallpapers/img.jpg", "wb")
+        out.write(resource.content)
+        out.close()
+        return 1
+    except:
+        return 0
+
+def setLocal(dayTime, weather):
     runningSys = platform.system()
+    path = f"/home/opezdal/Pictures/wallpapers/{weather}"
+    if runningSys == "Linux":
+        process = subprocess.Popen(["feh", "--bg-fill", f"{path}/{dayTime}.jpg"])
+        process.wait()
+        if process.returncode != 0: 
+            print("Краш процесса")
+            return
+    if runningSys == "win32": ctypes.windll.user32.SystemParametersInfoW(20, 0, f"{dayTime}.jpg", 3)
+
+def setPixabay():
+    runningSys = platform.system()
+    if runningSys == "Linux":
+        process = subprocess.Popen(["feh", "--bg-fill", "~/Pictures/wallpapers/img.jpg"])
+        process.wait()
+        if process.returncode != 0: 
+            print("Краш процесса")
+            return
+    if runningSys == "win32": ctypes.windll.user32.SystemParametersInfoW(20, 0, f"{dayTime}.jpg", 3)
+
+while(True):
     try:
         gpsRes = requests.get("https://ipinfo.io/loc")
         lat = gpsRes.text.split(',')[0]
@@ -21,16 +55,15 @@ while(True):
         weather = json.loads(response.text)["weather"][0]["main"].lower()
     except:
         weather = "clear"
-    path = f"/home/opezdal/Pictures/wallpapers/{weather}"
+
     t = time.localtime()
     dayTime = getDayTime(t, response)
-    if runningSys == "Linux":
-        process = subprocess.Popen(["feh", "--bg-fill", f"{path}/{dayTime}.jpg"])
-        process.wait()
-        if process.returncode != 0: 
-            print("Краш процесса")
-            break
-    if runningSys == "win32": ctypes.windll.user32.SystemParametersInfoW(20, 0, f"{dayTime}.jpg", 3)
+
+    if (parsePic(dayTime, weather)):
+        setPixabay(dayTime, weather)
+    else:
+        setLocal(dayTime, weather)
+
     print(f"{t.tm_hour}:{t.tm_min}, установил {weather} {dayTime} обои")
 
     file = open("log.txt", "a")
