@@ -1,5 +1,5 @@
 import time, subprocess, platform, ctypes, datetime, random
-import json
+import json, httplib2
 import requests
 import math
 
@@ -14,12 +14,13 @@ def getDayTime(t, response):
 def parsePic(dayTime, weather):
     try:
         request = requests.get(f"https://pixabay.com/api/?key=20129846-7b8836a9a63b2f2b6fa405f5f&q={dayTime}+{weather}&image_type=photo&pretty=true")
-        data = json.loads(request)
+        data = json.loads(request.text)
         hit = data["hits"][random.randint(0, len(data["hits"]))]
-        picUrl = hit["largeImageURL"]
-        resource = request.get(picUrl)
-        out = open("~/Pictures/wallpapers/img.jpg", "wb")
-        out.write(resource.content)
+        picUrl = hit["fullHDURL"]
+        h = httplib2.Http('.cache')
+        response, content = h.request(picUrl)
+        out = open("/home/opezdal/Pictures/wallpapers/img.jpg", "wb")
+        out.write(content)
         out.close()
         return 1
     except:
@@ -39,7 +40,7 @@ def setLocal(dayTime, weather):
 def setPixabay():
     runningSys = platform.system()
     if runningSys == "Linux":
-        process = subprocess.Popen(["feh", "--bg-fill", "~/Pictures/wallpapers/img.jpg"])
+        process = subprocess.Popen(["feh", "--bg-fill", "/home/opezdal/Pictures/wallpapers/img.jpg"])
         process.wait()
         if process.returncode != 0: 
             print("Краш процесса")
@@ -60,7 +61,7 @@ while(True):
     dayTime = getDayTime(t, response)
 
     if (parsePic(dayTime, weather)):
-        setPixabay(dayTime, weather)
+        setPixabay()
     else:
         setLocal(dayTime, weather)
 
