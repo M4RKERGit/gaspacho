@@ -1,4 +1,4 @@
-import time, subprocess, platform, ctypes, datetime, random
+import time, subprocess, platform, ctypes, datetime, random, configparser
 import json, httplib2
 import requests
 import math
@@ -11,11 +11,12 @@ def getDayTime(t, response):
     if t.tm_hour >= sunrise + 12 and time.localtime().tm_hour <= sunset: return 'evening'
     return 'night'
 
-def parsePic(dayTime, weather):
+def parsePic(dayTime, weather, pixToken):
     try:
-        request = requests.get(f"https://pixabay.com/api/?key=20129846-7b8836a9a63b2f2b6fa405f5f&q={dayTime}+{weather}&image_type=photo&pretty=true")
+        request = requests.get(f"https://pixabay.com/api/?key={pixToken}&q={dayTime}+{weather}&image_type=photo&pretty=true")
         data = json.loads(request.text)
         hit = data["hits"][random.randint(0, len(data["hits"]))]
+        global picUrl 
         picUrl = hit["fullHDURL"]
         h = httplib2.Http('.cache')
         response, content = h.request(picUrl)
@@ -47,12 +48,23 @@ def setPixabay():
             return
     if runningSys == "win32": ctypes.windll.user32.SystemParametersInfoW(20, 0, f"{dayTime}.jpg", 3)
 
+
+
+
+
+config = configparser.ConfigParser()
+config.read('tokens.ini')
+pixToken = config.get('tokens', 'pixabay_token')
+weatherToken = config.get('tokens', 'openweather_token')
+ipinfoToken = config.get('tokens', 'ipinfo_token')
+picUrl = "offline"
+
 while(True):
     try:
-        gpsRes = requests.get("https://ipinfo.io/loc")
+        gpsRes = requests.get(f"https://ipinfo.io/loc?token={ipinfoToken}")
         lat = gpsRes.text.split(',')[0]
         lon = gpsRes.text.split(',')[1][:-1]
-        response = requests.get(f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid=06d0d10ec4b1f25282e0ea1f8788bcb2")
+        response = requests.get(f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={weatherToken}")
         weather = json.loads(response.text)["weather"][0]["main"].lower()
     except:
         weather = "clear"
@@ -60,14 +72,15 @@ while(True):
     t = time.localtime()
     dayTime = getDayTime(t, response)
 
-    if (parsePic(dayTime, weather)):
+    if (parsePic(dayTime, weather, pixToken)):
         setPixabay()
     else:
         setLocal(dayTime, weather)
 
-    print(f"{t.tm_hour}:{t.tm_min}, установил {weather} {dayTime} обои")
+    print(f"{t.tm_hour}:{t.tm_min}, установил {weather} {dayTime} обои\n{picUrl}")
 
     file = open("log.txt", "a")
-    file.write(f"{t.tm_hour}:{t.tm_min}:{t.tm_sec}, установил {weather} {dayTime} обои\n")
+    file.write(f"{t.tm_hour}:{t.tm_min}:{t.tm_sec}, установил {weather} {dayTime} обои\n{picUrl}\n") #спасибо, Лина ♥♥♥
     file.close()
     time.sleep(300)
+    
